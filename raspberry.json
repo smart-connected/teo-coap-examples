@@ -1,0 +1,38 @@
+{
+  "title": "Raspberry MWAS",
+  "capacity": 2,
+  "timeout": 60000,
+  "resources": [
+    {
+      "title": "Status",
+      "uri": "/node/status",
+      "valueType": "INT",
+      "contentType": "MSGPACK",
+      "readOnly": true,
+      "supportsWidgets": false,
+      "supportsAlerts": false
+    },
+    {
+      "title": "Temperature",
+      "uri": "/node/temp",
+      "valueType": "FLOAT",
+      "contentType": "MSGPACK",
+      "readOnly": true,
+      "supportsWidgets": true,
+      "supportsAlerts": true
+    }
+  ],
+  "tasks": [
+    {
+      "taskType": "STATUS",
+      "uri": "/node/status",
+      "period": 15000
+    },
+    {
+      "taskType": "PERIODIC",
+      "uri": "/node/temp",
+      "period": 10000,
+      "timeout": 45000
+    }
+  ]
+}

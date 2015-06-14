@@ -22,7 +22,7 @@ MSGPACK_MEDIA_TYPE = 59 #number is unofficial
 CONST_ETAG = "a"
 
 #Node configuration
-UUID = "3454014341593037d90538ff00000000"
+UUID = "19DE9D3DFF99E1596CA09B602EA744A88E340FB83D0A60A6E8403C3FDAC7F809"
 TEO_ADDRESS = "com1.telemetria-online.pl"
 TEO_PORT = coap.COAP_PORT
 
@@ -40,9 +40,9 @@ class TemperatureSensor():
     latest value which might be at most (5 seconds + read time) old.
     """
     def __init__(self):
-        self.sensor = W1ThermSensor()
-        self.temperature = None
-        reactor.callLater(1, self._initiateRead)
+        #self.sensor = W1ThermSensor()
+        self.temperature = 22.5
+        #reactor.callLater(1, self._initiateRead)
 
     def _initiateRead(self):
         d = threads.deferToThread(sensor.get_temperature)
@@ -82,7 +82,7 @@ class TemperatureResource (resource.CoAPResource):
         self.sensor = TemperatureSensor()
 
     def render_GET(self, request):
-        value = sensor.temperature
+        value = self.sensor.temperature
         response = coap.Message(code=coap.CONTENT, payload=msgpack.packb(value))
         response.opt.content_format = MSGPACK_MEDIA_TYPE
         return defer.succeed(response)
@@ -108,7 +108,7 @@ class Agent():
         family, socktype, proto, canonname, sockaddr = gaiResult[0]
         if family in [socket.AF_INET]:
             self.teo_ip_address = sockaddr[0]
-        payload = '</sensors/counter>;rt="counter";if="sensor"'
+        payload = '</node/temp>;rt="temperature";if="sensor"'
         request = coap.Message(code=coap.POST, payload=payload)
         request.opt.uri_path = ("rd",)
         request.opt.uri_query = ("ep=" + UUID,)
@@ -142,6 +142,8 @@ class Agent():
 
 log.startLogging(sys.stdout)
 
+temperature_sensor = TemperatureSensor()
+
 root = resource.CoAPResource()
 
 node = resource.CoAPResource()
@@ -149,6 +151,9 @@ root.putChild('node', node)
 
 status = StatusResource()
 node.putChild('status', status)
+
+temp = TemperatureResource(temperature_sensor)
+node.putChild('temp', temp)
 
 endpoint = resource.Endpoint(root)
 protocol = coap.Coap(endpoint)
