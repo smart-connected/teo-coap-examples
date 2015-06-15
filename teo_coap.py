@@ -1,9 +1,3 @@
-'''
-Created on 19-05-2015
-
-@author: Maciej Wasilak
-'''
-
 import sys
 import socket
 import msgpack
@@ -40,12 +34,12 @@ class TemperatureSensor():
     latest value which might be at most (5 seconds + read time) old.
     """
     def __init__(self):
-        #self.sensor = W1ThermSensor()
-        self.temperature = 22.5
-        #reactor.callLater(1, self._initiateRead)
+        self.sensor = W1ThermSensor()
+        self.temperature = None
+        reactor.callLater(0.1,self._initiateRead)
 
     def _initiateRead(self):
-        d = threads.deferToThread(sensor.get_temperature)
+        d = threads.deferToThread(self.sensor.get_temperature)
         d.addCallback(self._processResult)
 
     def _processResult(self, result):
@@ -83,8 +77,11 @@ class TemperatureResource (resource.CoAPResource):
 
     def render_GET(self, request):
         value = self.sensor.temperature
-        response = coap.Message(code=coap.CONTENT, payload=msgpack.packb(value))
-        response.opt.content_format = MSGPACK_MEDIA_TYPE
+        if value is not None:
+            response = coap.Message(code=coap.CONTENT, payload=msgpack.packb(value))
+            response.opt.content_format = MSGPACK_MEDIA_TYPE
+        else:
+	    response = coap.Message(code=coap.SERVICE_UNAVAILABLE)
         return defer.succeed(response)
 
 class Agent():
@@ -100,7 +97,10 @@ class Agent():
         reactor.callLater(1, self.resolveAddress)
 
     def resolveAddress(self):
-        """Method for simple domain name resolution"""
+        """
+        Method for simple domain name resolution. Method uses deferToThread function, because
+        socket.getaddrinfo is not asynchronous.
+        """
         d = threads.deferToThread(socket.getaddrinfo, TEO_ADDRESS, TEO_PORT, 0, socket.SOCK_DGRAM)
         d.addCallback(self.register)
 
