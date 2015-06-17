@@ -16,6 +16,16 @@ Example application to connect 1-wire temperature sensor to Teo
         sudo pip install msgpack-python
         sudo pip install w1thermsensor
 
-6. Run:
+
+6. Download teo_coap.py or clone this repository
+7. Run:
+
+    There are two methods to run client:
+
+    a) As a python script (good for testing):
 
         python teo_coap.py
+
+    b) With twistd daemonizing tool:
+
+        twistd -y teo_coap.py
