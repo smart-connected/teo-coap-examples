@@ -4,6 +4,7 @@ import msgpack
 
 from twisted.internet import defer, reactor, threads
 from twisted.python import log
+from twisted.application import service, internet
 
 import txthings.coap as coap
 import txthings.resource as resource
@@ -140,24 +141,35 @@ class Agent():
         d = protocol.request(request)
         d.addCallback(self.processResponse)
 
-log.startLogging(sys.stdout)
+def initialize_endpoint():
+    temperature_sensor = TemperatureSensor()
 
-temperature_sensor = TemperatureSensor()
+    root = resource.CoAPResource()
 
-root = resource.CoAPResource()
+    node = resource.CoAPResource()
+    root.putChild('node', node)
 
-node = resource.CoAPResource()
-root.putChild('node', node)
+    status = StatusResource()
+    node.putChild('status', status)
 
-status = StatusResource()
-node.putChild('status', status)
+    temp = TemperatureResource(temperature_sensor)
+    node.putChild('temp', temp)
 
-temp = TemperatureResource(temperature_sensor)
-node.putChild('temp', temp)
+    return resource.Endpoint(root)
 
-endpoint = resource.Endpoint(root)
-protocol = coap.Coap(endpoint)
-client = Agent(protocol)
 
-reactor.listenUDP(coap.COAP_PORT, protocol)
-reactor.run()
+
+if __name__ == '__main__':
+    log.startLogging(sys.stdout)
+    protocol = coap.Coap(initialize_endpoint())
+    client = Agent(protocol)
+    reactor.listenUDP(coap.COAP_PORT, protocol)
+    reactor.run()
+else:
+    protocol = coap.Coap(initialize_endpoint())
+    client = Agent(protocol)
+    application = service.Application("teo_client")
+    internet.UDPServer(coap.COAP_PORT, protocol).setServiceParent(application)
+
+
+
