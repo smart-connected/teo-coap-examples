@@ -17,6 +17,7 @@ STATUS_PS = (1 << 0)
 MSGPACK_MEDIA_TYPE = 59 #number is unofficial
 CONST_ETAG = "a"
 REGISTRATION_UPDATE_PERIOD = 3600
+FAHRENHEIT = True
 
 #Node configuration
 UUID = "A85557F1D0161B9B44F3921AE60C496A6DDDBA79AB22262DA605BAA40E51E93D" #Insert your serial number here
@@ -36,13 +37,17 @@ class TemperatureSensor():
     Temperature is updated in the background, we always use the
     latest value which might be at most (5 seconds + read time) old.
     """
-    def __init__(self):
+    def __init__(self, isFahrenheit):
+        self.isFahrenheit = isFahrenheit
         self.sensor = W1ThermSensor()
         self.temperature = None
         reactor.callLater(0.1,self._initiateRead)
 
     def _initiateRead(self):
-        d = threads.deferToThread(self.sensor.get_temperature)
+        if self.isFahrenheit is True:
+            d = threads.deferToThread(self.sensor.get_temperature, W1ThermSensor.DEGREES_F)
+        else:
+            d = threads.deferToThread(self.sensor.get_temperature, W1ThermSensor.DEGREES_C)
         d.addCallback(self._processResult)
 
     def _processResult(self, result):
@@ -98,7 +103,7 @@ class TemperatureResource (resource.CoAPResource):
         resource.CoAPResource.__init__(self)
         self.visible = True
         self.addParam(resource.LinkParam("title", "Temperature resource"))
-        self.sensor = TemperatureSensor()
+        self.sensor = TemperatureSensor(FAHRENHEIT)
 
     def render_GET(self, request):
         value = self.sensor.temperature
