@@ -16,6 +16,7 @@ import pigpio
 STATUS_PS = (1 << 0)
 MSGPACK_MEDIA_TYPE = 59 #number is unofficial
 CONST_ETAG = "a"
+REGISTRATION_UPDATE_PERIOD = 3600
 
 #Node configuration
 UUID = "19DE9D3DFF99E1596CA09B602EA744A88E340FB83D0A60A6E8403C3FDAC7F809"
@@ -93,10 +94,10 @@ class StatusResource (resource.CoAPResource):
 class TemperatureResource (resource.CoAPResource):
     """Resource that represents 1-wire temperature sensor readout"""
 
-    def __init__(self, sensor):
+    def __init__(self):
         resource.CoAPResource.__init__(self)
         self.visible = True
-        self.addParam(resource.LinkParam("title", "Status resource"))
+        self.addParam(resource.LinkParam("title", "Temperature resource"))
         self.sensor = TemperatureSensor()
 
     def render_GET(self, request):
@@ -161,7 +162,10 @@ class Agent():
         family, socktype, proto, canonname, sockaddr = gaiResult[0]
         if family in [socket.AF_INET]:
             self.teo_ip_address = sockaddr[0]
-        payload = '</node/temp>;rt="temperature";if="sensor"'
+        #data = []
+        #self.protocol.endpoint.resource.generateResourceList(data, "")
+        #payload = ",".join(data)
+        payload = '' #
         request = coap.Message(code=coap.POST, payload=payload)
         request.opt.uri_path = ("rd",)
         request.opt.uri_query = ("ep=" + UUID,)
@@ -175,9 +179,9 @@ class Agent():
         if response.code == coap.CREATED:
             if response.opt.location_path:
                 self.reg_upd_address = response.opt.location_path
-                reactor.callLater(10, self.updateRegistration)
+                reactor.callLater(REGISTRATION_UPDATE_PERIOD, self.updateRegistration)
         elif response.code == coap.CHANGED:
-            reactor.callLater(10, self.updateRegistration)
+            reactor.callLater(REGISTRATION_UPDATE_PERIOD, self.updateRegistration)
         else:
             reactor.callLater(30, self.resolveAddress)
 
@@ -194,8 +198,6 @@ class Agent():
         d.addCallback(self.processResponse)
 
 def initialize_endpoint():
-    temperature_sensor = TemperatureSensor()
-
     root = resource.CoAPResource()
 
     node = resource.CoAPResource()
@@ -204,7 +206,7 @@ def initialize_endpoint():
     status = StatusResource()
     node.putChild('status', status)
 
-    temp = TemperatureResource(temperature_sensor)
+    temp = TemperatureResource()
     node.putChild('temp', temp)
 
     led = LEDResource()
