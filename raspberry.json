@@ -1,5 +1,5 @@
 {
-  "title": "Raspberry MWAS",
+  "title": "Raspberry Test LED",
   "capacity": 2,
   "timeout": 60000,
   "resources": [
@@ -18,6 +18,15 @@
       "valueType": "FLOAT",
       "contentType": "MSGPACK",
       "readOnly": true,
+      "supportsWidgets": true,
+      "supportsAlerts": true
+    },
+    {
+      "title": "LED",
+      "uri": "/node/led",
+      "valueType": "INT",
+      "contentType": "MSGPACK",
+      "readOnly": false,
       "supportsWidgets": true,
       "supportsAlerts": true
     }
