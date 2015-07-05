@@ -10,6 +10,7 @@ import txthings.coap as coap
 import txthings.resource as resource
 
 from w1thermsensor import W1ThermSensor
+import pigpio
 
 
 STATUS_PS = (1 << 0)
@@ -47,6 +48,28 @@ class TemperatureSensor():
         self.temperature = result
         reactor.callLater(5, self._initiateRead)
 
+class LEDActuator():
+    """
+    Use this class to control RaspberryPi's GPIO - for example LED.
+    We use 3rd party module 'pigpio' which might not be
+    asynchronous - that's why we use deferToThread function.
+    """
+    def __init__(self):
+        self.gpio = pigpio.pi()
+        self.gpio.set_mode(17, pigpio.OUTPUT)
+	self.gpio.write(17,1)
+	self.state = 0
+
+    def turnOn(self):
+        self.state = 1
+        return threads.deferToThread(self.gpio.write,17, 0)
+
+    def turnOff(self):
+        self.state = 0
+        return threads.deferToThread(self.gpio.write,17, 1)
+
+    def getState(self):
+        return self.state
 
 class StatusResource (resource.CoAPResource):
     """
@@ -83,6 +106,35 @@ class TemperatureResource (resource.CoAPResource):
             response.opt.content_format = MSGPACK_MEDIA_TYPE
         else:
 	    response = coap.Message(code=coap.SERVICE_UNAVAILABLE)
+        return defer.succeed(response)
+
+class LEDResource (resource.CoAPResource):
+    """Resource that represents 1-wire temperature sensor readout"""
+
+    def __init__(self):
+        resource.CoAPResource.__init__(self)
+        self.visible = True
+        self.addParam(resource.LinkParam("title", "LED resource"))
+        self.led = LEDActuator()
+
+    def render_GET(self, request):
+        response = coap.Message(code=coap.CONTENT, payload=msgpack.packb(self.led.getState()))
+        return defer.succeed(response)
+
+    def render_PUT(self, request):
+        value = msgpack.unpackb(request.payload)
+        if value not in (0, 1):
+	    response = coap.Message(code=coap.BAD_REQUEST)
+            return defer.succeed(response)
+	if value == 1:
+            d = self.led.turnOn()
+	elif value == 0:
+            d = self.led.turnOff()
+        d.addCallback(self.responseReady)
+        return d
+
+    def responseReady(self, value):
+        response = coap.Message(code=coap.CHANGED)
         return defer.succeed(response)
 
 class Agent():
@@ -154,6 +206,9 @@ def initialize_endpoint():
 
     temp = TemperatureResource(temperature_sensor)
     node.putChild('temp', temp)
+
+    led = LEDResource()
+    node.putChild('led', led)
 
     return resource.Endpoint(root)
 
